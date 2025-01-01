@@ -278,3 +278,173 @@ allow trrafic from all ns to
 
 </details>
 
+
+
+<details>
+<summary>
+The Role of Default Deny Network Policies
+By default, Kubernetes does not restrict the flow of network traffic between Pods. However, to establish a baseline security measure, we can use a 'Default Deny' network policy that denies all network traffic to and from Pods within the namespace unless specified otherwise.
+
+Implementing a Default Deny policy ensures no unauthorized access occurs in any of the Pods, thereby enhancing the security of your Kubernetes cluster.
+
+Here is a simple example of how a Default Deny policy can be implemented for the default namespace:
+```bash
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: default
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  ```
+
+The podSelector with {} implies that the policy applies to all Pods within the default namespace. The absence of ingress rules indicates that all inbound network traffic is denied by default.
+
+Using Default Deny as a Baseline for Fine-Grained Access Control
+After implementing a Default Deny policy, we've effectively created a blacklist that denies all network traffic by default. This acts as a baseline security measure, safeguarding our Pods from any unnecessary or potentially harmful network communication.
+
+This policy serves as a solid foundation upon which we can define fine-grained access controls.
+
+However, this policy by itself, although secure, will most likely break the application as no pods cant connect to any other pod!
+
+default-deny
+
+To enable the necessary communication paths, such as allowing the middleware to connect to the MySQL database, or the front-end to connect to the middleware, we can create additional network policies. These allow specific types of traffic, effectively creating a whitelist atop our baseline blacklist.
+
+In our upcoming labs, we will look into how we can further extend our network policy to enable these communication paths, thus demonstrating the powerful and flexible nature of Kubernetes Network Policies.
+
+Conclusion
+Implementing a Default Deny policy in Kubernetes is a crucial step towards securing your application at the network level. It forms a baseline security measure, acting as a blacklist to deny all communications by default. This baseline can then be extended with additional policies to establish fine-grained control over the network traffic within your cluster, providing robust and flexible security for your multi-tier application.
+
+
+Senario -
+Create a new network policy called default-deny-ingress with the following requirements:
+
+
+The policy should be applied to all pods in the default namespace (including frontend, middleware and mysql)
+It should block all inbound traffic for all pods in the default namespace.
+
+
+</summary>
+
+Use the following YAML. The podSelector is {} which means all pods in the default namespace will be affected by the policy.
+
+The ingress field is null in this case, which means that once applied this policy will block ingress for all pods in the default namespace.
+
+```bash
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: default
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  ```
+</details>
+
+
+<details>
+<summary>
+Senario -
+default-deny-ingress network policy in the default namespace, all inbound connections for all pods will be restricted.
+
+To do this, create a new network policy called default-allow-ingress in the default namespace, which, as the name suggests, would allow all ingress for all pods in the namespace.
+
+
+Note: Do not delete any of the existing resources including the default-deny-ingress network policy. If this policy was not created as part of the previous task, it will be automatically deployed.
+
+
+</summary>
+
+```bash
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-allow-ingress
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  ingress:
+    - {}
+
+
+controlplane ~ ➜  kubectl exec middleware -- nc -zv mysql-svc 3306
+mysql-svc (10.111.228.81:3306) open
+  ```
+
+</details>
+
+
+<details>
+<summary>
+Senario -
+we now have two network policies in the default namespace of this kubernetes cluster:
+A default-deny-ingress which blocks all ingress and,
+A default-allow-ingress that allows all ingress communication.
+
+will pod able to connect to other ?
+
+</summary>
+
+And we saw that while both policies are applied simultaneously, the allow rule is enfoced:
+```bash
+controlplane ~ ➜  kubectl exec middleware -- nc -zv mysql-svc 3306
+mysql-svc (10.101.141.65:3306) open
+
+controlplane ~ ➜  kubectl exec middleware -- nc -zv frontend-svc 80
+frontend-svc (10.100.63.217:80) open
+```
+
+This is because Network Policies in Kubernetes are additive, meaning that if there is any Network Policy that allows a certain type of traffic, that traffic will be allowed even if another Network Policy would block it. This design choice is based on the principle of explicitly allowed over implicit deny.
+
+you have one policy that denies all ingress traffic and one that allows all ingress traffic. Kubernetes will sum these policies, and the result is that all ingress traffic is allowed. The policy to allow traffic is considered an explicit rule that should be followed, even if there's a more general policy that would deny the traffic.
+
+However, it's important to note that this does NOT mean that allow policies always take precedence over deny policies. Rather, all policies are evaluated, and if there is any policy that would allow the traffic, then the traffic is allowed.
+
+This is why when designing your Network Policies, we typically start with a broad deny policy, and then add specific allow policies for just the traffic you want to permit. We will see more examples of this in the upcoming labs.
+
+</details>
+
+
+
+
+<details>
+<summary>
+Senario -
+Update this file to define the ingress field while using [] to denote none or no traffic.
+```bash
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: 
+ name: default-deny-ingress
+ namespace: default
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ```
+
+</summary>
+
+```bash
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress-null
+  namespace: default
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  ingress: []
+  ```
+
+</details>
+
+
