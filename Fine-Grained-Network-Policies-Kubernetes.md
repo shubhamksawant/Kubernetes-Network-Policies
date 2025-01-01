@@ -668,12 +668,44 @@ Spec:
 <details>
 <summary>
 Senario -
+Previously, we restricted all the egress connectivity of the genin namespace. But the administrator now wants to enable the egress connectivity on port 53 for both TCP and UDP.
+Edit the network policy genin-no-egress to accommodate the above.
 
 
 </summary>
 
 ```bash
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: 
+ name : genin-no-egress
+ namespace: genin
+spec:
+  policyTypes:
+    - Egress
+  egress : 
+    - ports: 
+      - port: 53
+        protocol: TCP 
+      - port: 53
+        protocol: UDP
+  podSelector: {}
 
+  
+controlplane ~ ✖ k describe netpol -n genin
+Name:         genin-no-egress
+Namespace:    genin
+Created on:   2025-01-01 12:59:02 +0000 UTC
+Labels:       <none>
+Annotations:  <none>
+Spec:
+  PodSelector:     <none> (Allowing the specific traffic to all pods in this namespace)
+  Not affecting ingress traffic
+  Allowing egress traffic:
+    To Port: 53/TCP
+    To Port: 53/UDP
+    To: <any> (traffic not restricted by destination)
+  Policy Types: Egress
 
   ```
   </details>
